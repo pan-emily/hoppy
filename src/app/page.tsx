@@ -13,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [headerVisible, setHeaderVisible] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,7 +78,20 @@ export default function Home() {
     const carousel = carouselRef.current;
     if (!carousel) return;
 
+    let lastScrollLeft = 0;
+
     const handleScroll = () => {
+      const currentScrollLeft = carousel.scrollLeft;
+      
+      // Hide header when scrolling horizontally
+      if (Math.abs(currentScrollLeft - lastScrollLeft) > 10) {
+        setHeaderVisible(false);
+      } else if (currentScrollLeft === 0) {
+        // Show header when back at start
+        setHeaderVisible(true);
+      }
+      lastScrollLeft = currentScrollLeft;
+
       const items = carousel.querySelectorAll('[data-carousel-item]');
       const carouselRect = carousel.getBoundingClientRect();
       const carouselLeft = carouselRect.left;
@@ -193,8 +207,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden">
-      {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-200">
+      {/* Auto-Hide Header */}
+      <header className={`fixed top-0 left-0 right-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-200 transition-transform duration-300 ${headerVisible ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="container mx-auto px-4 py-4">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-1">
@@ -208,7 +222,7 @@ export default function Home() {
       </header>
 
       {/* Main Content Area */}
-      <div className="pt-24 pb-32 h-screen flex flex-col">
+      <div className={`${headerVisible ? 'pt-24' : 'pt-4'} pb-24 h-screen flex flex-col transition-all duration-300`}>
         {recommendations.length > 0 ? (
           <>
             <div className="text-center mb-6 px-4">
@@ -221,19 +235,19 @@ export default function Home() {
             </div>
 
             {/* Horizontal Carousel */}
-            <div className="flex-1 relative px-4">
+            <div className="flex-1 relative px-4 min-h-0">
               <div 
                 ref={carouselRef}
                 className="h-full overflow-x-auto snap-x snap-mandatory scrollbar-hide"
               >
-                <div className="flex h-full items-center gap-6 px-20" style={{ width: `${recommendations.length * 320 + 1000}px` }}>
+                <div className="flex h-full items-center gap-6 px-20 py-8" style={{ width: `${recommendations.length * 320 + 1000}px` }}>
                   {recommendations.map((recommendation, index) => (
                     <div
                       key={index}
                       className="flex-shrink-0 snap-center transition-all duration-300 ease-out"
                       style={{
                         width: '280px',
-                        height: '500px',
+                        height: '520px',
                       }}
                       data-carousel-item
                     >
@@ -262,19 +276,14 @@ export default function Home() {
         )}
       </div>
 
-      {/* Fixed Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-4">
-        <div className="text-center">
-          <Link
-            href="/plan"
-            className="inline-flex items-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-8 rounded-full transition-colors shadow-lg"
-          >
-            🗓️ Plan Your Night Out
-          </Link>
-        </div>
-        <div className="text-center mt-2 text-xs text-gray-500">
-          Powered by Google Places and OpenAI
-        </div>
+      {/* Minimal Bottom Navigation */}
+      <div className="fixed bottom-6 right-6 z-20">
+        <Link
+          href="/plan"
+          className="inline-flex items-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-full transition-colors shadow-xl border-2 border-purple-400"
+        >
+          🗓️ Plan Night
+        </Link>
       </div>
     </div>
   );
