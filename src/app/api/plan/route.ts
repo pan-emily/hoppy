@@ -332,6 +332,8 @@ IMPORTANT RULES:
 - You can use the same barIndex multiple times for strategic "put name down and return" scenarios
 - COUNTING RULE: A bar with "putNameDown" + "return" visits counts as 1 unique bar, not 2
 - Target ${preferences.numberOfStops} UNIQUE bars total (so if you use put-name-down strategy, you'll have more stops but same number of unique venues)
+- CRITICAL: If using put-name-down strategy, there MUST be at least one different bar visit between "putNameDown" and "return" to the same bar
+- NEVER have consecutive stops at the same bar (e.g., don't do: Bar A putNameDown → Bar A return immediately)
 
 Create an optimal bar crawl route with ${preferences.numberOfStops} stops that fits within the specified timeframe. Use STRATEGIC PLANNING:
 
@@ -574,6 +576,18 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
       }
     });
     
+    // Check for consecutive visits to the same bar (invalid pattern)
+    for (let i = 0; i < result.crawl.stops.length - 1; i++) {
+      const currentStop = result.crawl.stops[i];
+      const nextStop = result.crawl.stops[i + 1];
+      
+      if (currentStop.barIndex === nextStop.barIndex) {
+        console.error(`🚨 INVALID PATTERN: Consecutive visits to same bar at index ${currentStop.barIndex}`);
+        console.error(`Stop ${i + 1}: ${currentStop.visitType || 'full'} → Stop ${i + 2}: ${nextStop.visitType || 'full'}`);
+        throw new Error(`Invalid bar crawl plan: Cannot have consecutive visits to the same bar. There must be at least one different bar between put-name-down and return visits.`);
+      }
+    }
+    
     // Check if all stops use the same bar with same visit type (indicates AI confusion)
     const uniqueFullVisits = new Set();
     result.crawl.stops.forEach((stop: { barIndex: number; visitType?: string }) => {
@@ -598,7 +612,8 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
     console.log(`- Requested bars: ${preferences.numberOfStops}`);
     
     if (uniqueBars.size !== preferences.numberOfStops) {
-      console.warn(`⚠️  Warning: AI created ${uniqueBars.size} unique bars but ${preferences.numberOfStops} were requested`);
+      console.error(`🚨 CRITICAL ERROR: AI created ${uniqueBars.size} unique bars but ${preferences.numberOfStops} were requested`);
+      throw new Error(`Invalid bar crawl plan: Expected ${preferences.numberOfStops} unique bars but got ${uniqueBars.size}. Each unique bar should count as one stop, even if using put-name-down strategy.`);
     }
     
     // Check if must-go bar is actually included

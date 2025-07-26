@@ -208,7 +208,7 @@ export default function Home() {
       </header>
 
       {/* Main Content Area */}
-      <div className="pt-24 pb-20 h-screen flex flex-col">
+      <div className="pt-24 pb-32 h-screen flex flex-col">
         {recommendations.length > 0 ? (
           <>
             <div className="text-center mb-6 px-4">

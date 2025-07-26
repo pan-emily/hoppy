@@ -341,7 +341,7 @@ export default function PlanPage() {
               value={preferences.neighborhood}
               onChange={(e) => setPreferences(prev => ({ ...prev, neighborhood: e.target.value }))}
               placeholder="e.g., East Village, Brooklyn, Manhattan"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
               required
             />
           </div>
@@ -354,7 +354,7 @@ export default function PlanPage() {
               id="numberOfStops"
               value={preferences.numberOfStops}
               onChange={(e) => setPreferences(prev => ({ ...prev, numberOfStops: parseInt(e.target.value) }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
             >
               <option value={2}>2 stops</option>
               <option value={3}>3 stops</option>
@@ -395,7 +395,7 @@ export default function PlanPage() {
               value={preferences.mustGoBar}
               onChange={(e) => setPreferences(prev => ({ ...prev, mustGoBar: e.target.value }))}
               placeholder="Name of a specific bar you want to include"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
             />
           </div>
 
@@ -424,7 +424,7 @@ export default function PlanPage() {
               id="dayOfWeek"
               value={preferences.dayOfWeek}
               onChange={(e) => setPreferences(prev => ({ ...prev, dayOfWeek: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
             >
               <option value="Monday">Monday</option>
               <option value="Tuesday">Tuesday</option>
@@ -446,7 +446,7 @@ export default function PlanPage() {
                 id="startTime"
                 value={preferences.startTime}
                 onChange={(e) => setPreferences(prev => ({ ...prev, startTime: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
               />
             </div>
             
@@ -459,7 +459,7 @@ export default function PlanPage() {
                 id="endTime"
                 value={preferences.endTime}
                 onChange={(e) => setPreferences(prev => ({ ...prev, endTime: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
               />
             </div>
           </div>
