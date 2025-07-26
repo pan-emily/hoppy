@@ -53,12 +53,15 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
         {bar.photos && bar.photos.length > 0 && (
           <div className="absolute inset-0">
             <img
-              src={getPhotoUrl(bar.photos[0].photo_reference, 600) || ''}
-              alt={`${bar.name} background`}
-              className="w-full h-full object-cover"
+              src={getPhotoUrl(bar.photos[0].photo_reference, 800) || ''}
+              alt={`${bar.name} atmosphere`}
+              className="w-full h-full object-cover transition-all duration-500"
               loading="lazy"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+            {/* Enhanced gradient overlay for better text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10"></div>
+            {/* Subtle vignette effect */}
+            <div className="absolute inset-0 bg-radial-gradient from-transparent via-transparent to-black/20"></div>
           </div>
         )}
         
@@ -79,23 +82,32 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
             </div>
           </div>
 
-          {/* Additional Photos Strip */}
+          {/* Additional Photos Gallery */}
           {bar.photos && bar.photos.length > 1 && (
-            <div className="flex gap-2 mt-4">
-              {bar.photos.slice(1, 4).map((photo, index) => {
-                const photoUrl = getPhotoUrl(photo.photo_reference, 200);
-                if (!photoUrl) return null;
-                return (
-                  <div key={index} className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white/30">
-                    <img
-                      src={photoUrl}
-                      alt={`${bar.name} photo ${index + 2}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                );
-              })}
+            <div className="mt-4">
+              <div className="flex gap-2 mb-2">
+                {bar.photos.slice(1, 5).map((photo, index) => {
+                  const photoUrl = getPhotoUrl(photo.photo_reference, 300);
+                  if (!photoUrl) return null;
+                  return (
+                    <div key={index} className="flex-1 h-16 rounded-lg overflow-hidden border-2 border-white/30 bg-white/10 backdrop-blur-sm">
+                      <img
+                        src={photoUrl}
+                        alt={`${bar.name} vibe ${index + 2}`}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                        loading="lazy"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              {bar.photos.length > 1 && (
+                <div className="text-center">
+                  <span className="text-xs text-white/70 bg-white/10 backdrop-blur-sm rounded-full px-2 py-1">
+                    📸 {bar.photos.length} photos • Tap to explore
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -154,22 +166,29 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
       
       {bar.photos && bar.photos.length > 0 && (
         <div className="mb-4">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {bar.photos.slice(0, 3).map((photo, index) => {
-              const photoUrl = getPhotoUrl(photo.photo_reference, 300);
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {bar.photos.slice(0, 6).map((photo, index) => {
+              const photoUrl = getPhotoUrl(photo.photo_reference, 400);
               if (!photoUrl) return null;
               return (
-                <div key={index} className="flex-shrink-0">
+                <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
                   <img
                     src={photoUrl}
-                    alt={`${bar.name} photo ${index + 1}`}
-                    className="w-24 h-24 object-cover rounded-lg shadow-sm"
+                    alt={`${bar.name} vibe ${index + 1}`}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
                 </div>
               );
             })}
           </div>
+          {bar.photos.length > 6 && (
+            <div className="text-center">
+              <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-1">
+                📸 {bar.photos.length} photos available
+              </span>
+            </div>
+          )}
         </div>
       )}
       

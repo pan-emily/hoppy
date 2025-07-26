@@ -335,7 +335,13 @@ IMPORTANT RULES:
 - CRITICAL: If using put-name-down strategy, there MUST be at least one different bar visit between "putNameDown" and "return" to the same bar
 - NEVER have consecutive stops at the same bar (e.g., don't do: Bar A putNameDown → Bar A return immediately)
 
-Create an optimal bar crawl route with ${preferences.numberOfStops} stops that fits within the specified timeframe. Use STRATEGIC PLANNING:
+EXAMPLES OF CORRECT COUNTING FOR ${preferences.numberOfStops} UNIQUE BARS:
+✅ CORRECT (3 unique bars): Bar A (full) → Bar B (full) → Bar C (full) = 3 stops, 3 unique bars
+✅ CORRECT (3 unique bars): Bar A (putNameDown) → Bar B (full) → Bar A (return) → Bar C (full) = 4 stops, 3 unique bars
+❌ WRONG: Bar A (putNameDown) → Bar A (return) → Bar B (full) = 3 stops, 2 unique bars (violates consecutive rule)
+❌ WRONG: Bar A (full) → Bar B (full) = 2 stops, 2 unique bars (doesn't meet ${preferences.numberOfStops} requirement)
+
+Create an optimal bar crawl route with ${preferences.numberOfStops} stops that fits EXACTLY within the specified timeframe from ${preferences.startTime ? formatTime(preferences.startTime) : '9:00 PM'} to ${preferences.endTime ? formatTime(preferences.endTime) : '1:00 AM'}. Use STRATEGIC PLANNING:
 
 STRATEGIC CONSIDERATIONS:
 - **Day-of-Week Patterns**: ${getDayOfWeekPatterns(preferences.dayOfWeek)}
@@ -360,10 +366,13 @@ ${preferences.allowTransit ? '7. "Start in Brooklyn at [distant must-go bar], th
 ${preferences.allowTransit ? '8. "Do Manhattan bars first, then end the night at [distant Brooklyn bar] to avoid backtracking"' : ''}
 
 TIME ALLOCATION STRATEGY:
+- START TIME: ${preferences.startTime ? formatTime(preferences.startTime) : '9:00 PM'} - First bar must begin at or after this time
+- END TIME: ${preferences.endTime ? formatTime(preferences.endTime) : '1:00 AM'} - Last bar must end by this time
 - Distribute time based on bar type and expected crowds, not just evenly
 - Account for travel time between venues ${preferences.allowTransit ? '(5-10 min walking, 15-20 min transit)' : '(5-15 min walking)'}
 - Build in buffer time for potential waits
 - Consider ordering efficiency at each stop
+- NEVER schedule activities before ${preferences.startTime ? formatTime(preferences.startTime) : '9:00 PM'} or after ${preferences.endTime ? formatTime(preferences.endTime) : '1:00 AM'}
 
 ${preferences.mustGoBar ? `
 ⚠️ ABSOLUTE REQUIREMENT - MUST-GO BAR: "${preferences.mustGoBar}" MUST BE INCLUDED. THIS IS NON-NEGOTIABLE.
@@ -448,6 +457,8 @@ WHEN NOT TO USE (99% of bars):
 DEFAULT: Use "full" visitType for almost all bars. Most bars you just walk into and get drinks normally.
 
 ASSESSMENT: Look at the bars in this list - are any of them genuinely exclusive world-famous places that require reservations? If not, use "full" for all stops.
+
+🚨 FINAL REMINDER: You must create exactly ${preferences.numberOfStops} UNIQUE bars in your plan. If you use put-name-down strategy, ensure there's a different bar between putNameDown and return visits. Count unique bars, not total stops!
 
 VENUE FOCUS & ENERGY PROGRESSION:
 - Prioritize actual BARS over restaurants that happen to serve drinks
@@ -612,10 +623,25 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
     console.log(`- Unique bars: ${uniqueBars.size}`);
     console.log(`- Requested bars: ${preferences.numberOfStops}`);
     
+    // Check if the plan meets the unique bar requirement - temporarily disabled to fix crashes
     if (uniqueBars.size !== preferences.numberOfStops) {
       console.warn(`⚠️ Warning: AI created ${uniqueBars.size} unique bars but ${preferences.numberOfStops} were requested`);
-      // Temporarily disable throwing error to allow app to work
-      // throw new Error(`Invalid bar crawl plan: Expected ${preferences.numberOfStops} unique bars but got ${uniqueBars.size}. Each unique bar should count as one stop, even if using put-name-down strategy.`);
+      
+      // Check if this is due to consecutive same-bar visits (common AI mistake)
+      let hasConsecutiveSameBar = false;
+      for (let i = 0; i < result.crawl.stops.length - 1; i++) {
+        if (result.crawl.stops[i].barIndex === result.crawl.stops[i + 1].barIndex) {
+          hasConsecutiveSameBar = true;
+          break;
+        }
+      }
+      
+      if (hasConsecutiveSameBar) {
+        console.warn(`⚠️ Found consecutive visits to the same bar. This resulted in ${uniqueBars.size} unique bars instead of ${preferences.numberOfStops}.`);
+      } else {
+        console.warn(`⚠️ Expected ${preferences.numberOfStops} unique bars but got ${uniqueBars.size}.`);
+      }
+      // Temporarily disabled: throw new Error(...);
     }
     
     // Check if must-go bar is actually included
