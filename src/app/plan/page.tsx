@@ -237,6 +237,47 @@ export default function PlanPage() {
                     </div>
                   </div>
 
+                  {/* Bar Photo */}
+                  {stop.bar.photos && stop.bar.photos.length > 0 && (
+                    <div className="mb-4">
+                      <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 mb-2">
+                        <img
+                          src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photoreference=${stop.bar.photos[0].photo_reference}&key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}`}
+                          alt={`${stop.bar.name} interior`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      {stop.bar.photos.length > 1 && (
+                        <div className="flex gap-2 overflow-x-auto">
+                          {stop.bar.photos.slice(1, 4).map((photo, index) => (
+                            <div key={index} className="flex-shrink-0 w-16 h-12 rounded-md overflow-hidden bg-gray-100">
+                              <img
+                                src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&photoreference=${photo.photo_reference}&key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}`}
+                                alt={`${stop.bar.name} view ${index + 2}`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          ))}
+                          {stop.bar.photos.length > 4 && (
+                            <div className="flex-shrink-0 w-16 h-12 rounded-md bg-gray-200 flex items-center justify-center">
+                              <span className="text-xs text-gray-600 font-medium">+{stop.bar.photos.length - 4}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-gray-700 mb-4 leading-relaxed">{stop.reasoning}</p>
 
                   <div className="text-sm text-gray-500 mb-2">

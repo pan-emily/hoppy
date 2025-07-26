@@ -42,7 +42,14 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
 
   const getPhotoUrl = (photoReference: string, maxWidth: number = 400) => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
-    if (!apiKey) return null;
+    if (!apiKey) {
+      console.warn('Google Places API key not found for photo URLs');
+      return null;
+    }
+    if (!photoReference) {
+      console.warn('No photo reference provided');
+      return null;
+    }
     return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${apiKey}`;
   };
 
@@ -53,10 +60,15 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
         {bar.photos && bar.photos.length > 0 && (
           <div className="absolute inset-0">
             <img
-              src={getPhotoUrl(bar.photos[0].photo_reference, 800) || ''}
+              src={getPhotoUrl(bar.photos[0].photo_reference, 800) || '/api/placeholder/800/600'}
               alt={`${bar.name} atmosphere`}
               className="w-full h-full object-cover transition-all duration-500"
               loading="lazy"
+              onError={(e) => {
+                console.error('Failed to load hero image for', bar.name);
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
             />
             {/* Enhanced gradient overlay for better text readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10"></div>
@@ -82,32 +94,40 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
             </div>
           </div>
 
-          {/* Additional Photos Gallery */}
+          {/* Photo Thumbnails Gallery */}
           {bar.photos && bar.photos.length > 1 && (
             <div className="mt-4">
-              <div className="flex gap-2 mb-2">
-                {bar.photos.slice(1, 5).map((photo, index) => {
-                  const photoUrl = getPhotoUrl(photo.photo_reference, 300);
+              <div className="flex gap-2 mb-2 overflow-x-auto">
+                {bar.photos.slice(1, 6).map((photo, index) => {
+                  const photoUrl = getPhotoUrl(photo.photo_reference, 200);
                   if (!photoUrl) return null;
                   return (
-                    <div key={index} className="flex-1 h-16 rounded-lg overflow-hidden border-2 border-white/30 bg-white/10 backdrop-blur-sm">
+                    <div key={index} className="flex-shrink-0 w-12 h-12 rounded-md overflow-hidden border border-white/40 bg-white/20 backdrop-blur-sm cursor-pointer hover:scale-105 transition-transform duration-200">
                       <img
                         src={photoUrl}
-                        alt={`${bar.name} vibe ${index + 2}`}
-                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                        alt={`${bar.name} preview ${index + 2}`}
+                        className="w-full h-full object-cover"
                         loading="lazy"
+                        onError={(e) => {
+                          console.error('Failed to load thumbnail for', bar.name);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
                       />
                     </div>
                   );
                 })}
+                {bar.photos.length > 6 && (
+                  <div className="flex-shrink-0 w-12 h-12 rounded-md bg-white/20 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                    <span className="text-xs text-white font-medium">+{bar.photos.length - 6}</span>
+                  </div>
+                )}
               </div>
-              {bar.photos.length > 1 && (
-                <div className="text-center">
-                  <span className="text-xs text-white/70 bg-white/10 backdrop-blur-sm rounded-full px-2 py-1">
-                    📸 {bar.photos.length} photos • Tap to explore
-                  </span>
-                </div>
-              )}
+              <div className="text-center">
+                <span className="text-xs text-white/70 bg-white/10 backdrop-blur-sm rounded-full px-2 py-1">
+                  📸 {bar.photos.length} photos
+                </span>
+              </div>
             </div>
           )}
 
@@ -166,29 +186,55 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
       
       {bar.photos && bar.photos.length > 0 && (
         <div className="mb-4">
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            {bar.photos.slice(0, 6).map((photo, index) => {
-              const photoUrl = getPhotoUrl(photo.photo_reference, 400);
-              if (!photoUrl) return null;
-              return (
-                <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                  <img
-                    src={photoUrl}
-                    alt={`${bar.name} vibe ${index + 1}`}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                </div>
-              );
-            })}
-          </div>
-          {bar.photos.length > 6 && (
-            <div className="text-center">
-              <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-1">
-                📸 {bar.photos.length} photos available
-              </span>
+          {/* Main photo with smaller thumbnails below */}
+          <div className="mb-3">
+            <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 mb-2">
+              <img
+                src={getPhotoUrl(bar.photos[0].photo_reference, 600) || '/api/placeholder/600/400'}
+                alt={`${bar.name} main view`}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  console.error('Failed to load main image for', bar.name);
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
             </div>
-          )}
+            {bar.photos.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {bar.photos.slice(1, 5).map((photo, index) => {
+                  const photoUrl = getPhotoUrl(photo.photo_reference, 200);
+                  if (!photoUrl) return null;
+                  return (
+                    <div key={index} className="flex-shrink-0 w-16 h-12 rounded-md overflow-hidden bg-gray-100 cursor-pointer hover:scale-105 transition-transform duration-200">
+                      <img
+                        src={photoUrl}
+                        alt={`${bar.name} preview ${index + 2}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          console.error('Failed to load preview thumbnail for', bar.name);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+                {bar.photos.length > 5 && (
+                  <div className="flex-shrink-0 w-16 h-12 rounded-md bg-gray-200 flex items-center justify-center">
+                    <span className="text-xs text-gray-600 font-medium">+{bar.photos.length - 5}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="text-center">
+            <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-1">
+              📸 {bar.photos.length} photos
+            </span>
+          </div>
         </div>
       )}
       

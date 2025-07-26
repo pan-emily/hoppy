@@ -20,11 +20,16 @@ interface Place {
 export function filterAdultVenues(places: Place[]): Place[] {
   const excludedKeywords = [
     'strip', 'adult', 'gentlemen', 'topless', 'exotic', 'lingerie', 'massage parlor', 
-    'escort', 'xxx', 'nude', 'dancers', 'cabaret'
+    'escort', 'xxx', 'nude', 'dancers', 'cabaret', 'live music', 'concert', 'venue', 
+    'theater', 'theatre', 'performance', 'shows'
   ];
 
   const restaurantTypes = [
     'restaurant', 'meal_takeaway', 'meal_delivery', 'food', 'cafe', 'bakery'
+  ];
+
+  const liveMusicTypes = [
+    'concert_hall', 'performing_arts_theater', 'theater'
   ];
 
   return places.filter((place) => {
@@ -36,6 +41,11 @@ export function filterAdultVenues(places: Place[]): Place[] {
       type === 'night_club' && excludedKeywords.some(keyword => 
         place.name.toLowerCase().includes(keyword)
       )
+    );
+
+    // Filter out live music venues
+    const isLiveMusicVenue = place.types?.some(type => 
+      liveMusicTypes.includes(type)
     );
 
     // Filter out restaurants unless they explicitly have bar types too
@@ -55,6 +65,7 @@ export function filterAdultVenues(places: Place[]): Place[] {
            place.rating >= 3.5 &&
            nameCheck &&
            typeCheck &&
+           !isLiveMusicVenue &&
            venueTypeCheck;
   });
 }
