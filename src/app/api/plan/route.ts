@@ -4,6 +4,26 @@ import { PlanningPreferences, BarCrawl } from '../../../types';
 import axios from 'axios';
 import { filterAdultVenues } from '../../../utils/filterBars';
 
+interface GooglePlacesBar {
+  place_id: string;
+  name: string;
+  rating?: number;
+  price_level?: number;
+  vicinity: string;
+  business_status: string;
+  formatted_address?: string;
+  types?: string[];
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  photos?: Array<{
+    photo_reference: string;
+  }>;
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -41,7 +61,7 @@ async function getBarWaitTimeFromReviews(placeId: string): Promise<string> {
       const reviews = detailsResponse.data.result.reviews;
       
       // Analyze reviews for wait time mentions
-      const waitMentions = reviews.filter((review: any) => {
+      const waitMentions = reviews.filter((review: { text: string }) => {
         const text = review.text.toLowerCase();
         return text.includes('wait') || text.includes('line') || text.includes('busy') || 
                text.includes('crowded') || text.includes('packed') || text.includes('full') ||
@@ -70,7 +90,7 @@ async function getBarWaitTimeFromReviews(placeId: string): Promise<string> {
   return 'Wait info unavailable';
 }
 
-function filterByNeighborhood(bars: any[], requestedNeighborhood: string): any[] {
+function filterByNeighborhood(bars: GooglePlacesBar[], requestedNeighborhood: string): GooglePlacesBar[] {
   const neighborhood = requestedNeighborhood.toLowerCase();
   
   // Define neighborhood exclusions - bars to filter out if they're clearly not in the requested area
@@ -208,7 +228,7 @@ export async function POST(request: NextRequest) {
       
       if (!mustGoBarExists) {
         // Find the must-go bar in the original unfiltered list
-        const mustGoBarFromOriginal = allBars.find(bar => {
+        const mustGoBarFromOriginal = allBars.find((bar: GooglePlacesBar) => {
           const barName = bar.name.toLowerCase();
           return barName.includes(mustGoBarName) || mustGoBarName.includes(barName);
         });
@@ -218,7 +238,7 @@ export async function POST(request: NextRequest) {
           console.log(`Added must-go bar "${mustGoBarFromOriginal.name}" back to the list`);
         } else {
           console.log(`Could not find must-go bar "${preferences.mustGoBar}" in nearby search`);
-          console.log('Available bars:', allBars.map(b => b.name));
+          console.log('Available bars:', allBars.map((b: GooglePlacesBar) => b.name));
           
           // Fallback: Try direct text search for the must-go bar
           try {
@@ -256,7 +276,7 @@ export async function POST(request: NextRequest) {
 
     // Get wait time information from reviews for key bars
     const barsWithWaitInfo = await Promise.all(
-      bars.map(async (bar: any, index: number) => {
+      bars.map(async (bar: GooglePlacesBar, index: number) => {
         // Only fetch reviews for a subset to avoid API limits
         let waitInfo = 'Wait info unavailable';
         if (index < 10) { // Limit to first 10 bars to manage API costs
@@ -266,7 +286,7 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    const barList = barsWithWaitInfo.map((bar: any, index: number) => 
+    const barList = barsWithWaitInfo.map((bar: GooglePlacesBar & { waitInfo: string }, index: number) => 
       `${index}. ${bar.name} - Rating: ${bar.rating}, Price: ${bar.price_level ? '$'.repeat(bar.price_level) : 'N/A'}, Address: ${bar.vicinity}, Wait Times: ${bar.waitInfo}`
     ).join('\n');
     
@@ -542,11 +562,11 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
         // Same bar used multiple times - check if it's a valid pattern
         const hasNameDown = visitTypes.includes('putNameDown');
         const hasReturn = visitTypes.includes('return');
-        const hasFull = visitTypes.includes('full');
+        // const hasFull = visitTypes.includes('full'); // Removed unused variable
         
         if (hasNameDown && hasReturn) {
           console.log(`✅ Valid pattern: ${barName} uses put-name-down strategy`);
-        } else if (visitTypes.every(type => type === 'full')) {
+        } else if (visitTypes.every((type: string) => type === 'full')) {
           console.warn(`⚠️  WARNING: ${barName} appears multiple times with 'full' visits - this seems unintentional`);
         } else {
           console.log(`📝 Pattern for ${barName}: ${visitTypes.join(', ')}`);
@@ -556,7 +576,7 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
     
     // Check if all stops use the same bar with same visit type (indicates AI confusion)
     const uniqueFullVisits = new Set();
-    result.crawl.stops.forEach((stop: any) => {
+    result.crawl.stops.forEach((stop: { barIndex: number; visitType?: string }) => {
       if (stop.visitType === 'full' || !stop.visitType) {
         uniqueFullVisits.add(stop.barIndex);
       }
@@ -583,9 +603,9 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
     
     // Check if must-go bar is actually included
     if (preferences.mustGoBar) {
-      const mustGoFound = Array.from(uniqueBars).some(barIndex => {
-        const barName = bars[barIndex].name.toLowerCase();
-        const mustGoName = preferences.mustGoBar.toLowerCase();
+      const mustGoFound = Array.from(uniqueBars as Set<number>).some((barIndex: number) => {
+        const barName = barsWithWaitInfo[barIndex].name.toLowerCase();
+        const mustGoName = preferences.mustGoBar!.toLowerCase();
         return barName.includes(mustGoName) || mustGoName.includes(barName);
       });
       
@@ -598,7 +618,7 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
     }
     
     // Validate commute times for realism
-    result.crawl.stops.forEach((stop: any, index: number) => {
+    result.crawl.stops.forEach((stop: { commuteToNext?: { method: string; duration: string } }, index: number) => {
       if (stop.commuteToNext && index < result.crawl.stops.length - 1) {
         const duration = stop.commuteToNext.duration;
         const method = stop.commuteToNext.method;
@@ -617,14 +637,14 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
     
     const crawl: BarCrawl = {
       stops: result.crawl.stops
-        .filter((stop: { barIndex: number; order: number; reasoning: string; estimatedTime: string; visitType?: string; commuteToNext?: any }) => {
+        .filter((stop: { barIndex: number; order: number; reasoning: string; estimatedTime: string; visitType?: string; commuteToNext?: { method: string; duration: string; instructions?: string } }) => {
           const isValid = stop.barIndex >= 0 && stop.barIndex < bars.length;
           if (!isValid) {
             console.warn(`Invalid barIndex ${stop.barIndex}, skipping stop`);
           }
           return isValid;
         })
-        .map((stop: { barIndex: number; order: number; reasoning: string; estimatedTime: string; visitType?: string; commuteToNext?: any }) => ({
+        .map((stop: { barIndex: number; order: number; reasoning: string; estimatedTime: string; visitType?: string; commuteToNext?: { method: string; duration: string; instructions?: string } }) => ({
           bar: {
             ...barsWithWaitInfo[stop.barIndex],
             waitInfo: barsWithWaitInfo[stop.barIndex]?.waitInfo || 'Wait info unavailable'

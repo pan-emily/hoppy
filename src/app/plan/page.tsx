@@ -171,11 +171,12 @@ export default function PlanPage() {
     }
   };
 
-  const getUniqueBarCount = () => {
-    if (!crawl) return 0;
-    const uniqueBars = new Set(crawl.stops.map(stop => stop.bar.place_id));
-    return uniqueBars.size;
-  };
+  // Utility function to count unique bars (currently unused but may be useful)
+  // const getUniqueBarCount = () => {
+  //   if (!crawl) return 0;
+  //   const uniqueBars = new Set(crawl.stops.map(stop => stop.bar.place_id));
+  //   return uniqueBars.size;
+  // };
 
   const getWaitTimeStyle = (waitInfo: string) => {
     if (waitInfo.includes('Minimal wait') || waitInfo.includes('no wait')) {
