@@ -21,6 +21,7 @@ export default function PlanPage() {
     endTime: '01:00',   // Default to 1 AM
     dayOfWeek: getTodayDayOfWeek(), // Default to today
     allowTransit: false, // Default to walking only
+    vetoedBars: [], // Track vetoed bars across session
   });
   
   const [crawl, setCrawl] = useState<BarCrawl | null>(null);
@@ -67,6 +68,51 @@ export default function PlanPage() {
 
   const openBarInMaps = (placeId: string) => {
     const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+    window.open(mapsUrl, '_blank');
+  };
+
+  const vetoBar = async (placeId: string) => {
+    const updatedVetoedBars = [...(preferences.vetoedBars || []), placeId];
+    
+    setPreferences(prev => ({
+      ...prev,
+      vetoedBars: updatedVetoedBars
+    }));
+
+    // Recalculate route with updated vetoed bars
+    await recalculateRoute(updatedVetoedBars);
+  };
+
+  const recalculateRoute = async (vetoedBars: string[]) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updatedPreferences = {
+        ...preferences,
+        vetoedBars: vetoedBars
+      };
+      
+      const response = await axios.post('/api/plan', updatedPreferences);
+      setCrawl(response.data.crawl);
+    } catch (err) {
+      console.error('Error recalculating bar crawl:', err);
+      setError('Failed to recalculate route. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportToGoogleMaps = () => {
+    if (!crawl) return;
+    
+    // Create waypoints for Google Maps URL
+    const waypoints = crawl.stops
+      .map(stop => `${stop.bar.name}, ${stop.bar.vicinity}`)
+      .join('|');
+    
+    // Google Maps directions URL with multiple stops
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&waypoints=${encodeURIComponent(waypoints)}&travelmode=walking`;
     window.open(mapsUrl, '_blank');
   };
 
@@ -131,6 +177,17 @@ export default function PlanPage() {
     return uniqueBars.size;
   };
 
+  const getWaitTimeStyle = (waitInfo: string) => {
+    if (waitInfo.includes('Minimal wait') || waitInfo.includes('no wait')) {
+      return 'bg-green-100 text-green-800';
+    } else if (waitInfo.includes('moderate') || waitInfo.includes('busy')) {
+      return 'bg-yellow-100 text-yellow-800';
+    } else if (waitInfo.includes('Long waits') || waitInfo.includes('Very crowded')) {
+      return 'bg-red-100 text-red-800';
+    }
+    return 'bg-gray-100 text-gray-800';
+  };
+
   if (crawl) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
@@ -181,16 +238,31 @@ export default function PlanPage() {
 
                   <p className="text-gray-700 mb-4 leading-relaxed">{stop.reasoning}</p>
 
-                  <div className="text-sm text-gray-500 mb-4">
+                  <div className="text-sm text-gray-500 mb-2">
                     📍 {stop.bar.vicinity}
                   </div>
+                  
+                  {stop.bar.waitInfo && stop.bar.waitInfo !== 'Wait info unavailable' && (
+                    <div className={`text-sm mb-4 px-2 py-1 rounded-md inline-block ${getWaitTimeStyle(stop.bar.waitInfo)}`}>
+                      ⏱️ {stop.bar.waitInfo}
+                    </div>
+                  )}
 
-                  <button
-                    onClick={() => openBarInMaps(stop.bar.place_id)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                  >
-                    Open in Google Maps
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openBarInMaps(stop.bar.place_id)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Open in Google Maps
+                    </button>
+                    <button
+                      onClick={() => vetoBar(stop.bar.place_id)}
+                      className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                      disabled={loading}
+                    >
+                      {loading ? '...' : '❌ Veto'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Commute Information */}
@@ -215,13 +287,27 @@ export default function PlanPage() {
             ))}
           </div>
 
-          <div className="text-center mt-8">
-            <button
-              onClick={() => setCrawl(null)}
-              className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-            >
-              Plan Another Crawl
-            </button>
+          <div className="text-center mt-8 space-y-4">
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={exportToGoogleMaps}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              >
+                🗺️ Export to Google Maps
+              </button>
+              <button
+                onClick={() => setCrawl(null)}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              >
+                Plan Another Crawl
+              </button>
+            </div>
+            
+            {preferences.vetoedBars && preferences.vetoedBars.length > 0 && (
+              <div className="text-sm text-gray-600">
+                {preferences.vetoedBars.length} bar(s) vetoed this session
+              </div>
+            )}
           </div>
         </div>
       </div>

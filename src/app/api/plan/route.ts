@@ -26,6 +26,50 @@ function getDayOfWeekPatterns(dayOfWeek?: string): string {
   }
 }
 
+async function getBarWaitTimeFromReviews(placeId: string): Promise<string> {
+  try {
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json`;
+    const detailsParams = {
+      place_id: placeId,
+      fields: 'reviews',
+      key: process.env.GOOGLE_PLACES_API_KEY,
+    };
+
+    const detailsResponse = await axios.get(detailsUrl, { params: detailsParams });
+    
+    if (detailsResponse.data.status === 'OK' && detailsResponse.data.result.reviews) {
+      const reviews = detailsResponse.data.result.reviews;
+      
+      // Analyze reviews for wait time mentions
+      const waitMentions = reviews.filter((review: any) => {
+        const text = review.text.toLowerCase();
+        return text.includes('wait') || text.includes('line') || text.includes('busy') || 
+               text.includes('crowded') || text.includes('packed') || text.includes('full') ||
+               text.includes('minutes') || text.includes('hour');
+      });
+
+      if (waitMentions.length > 0) {
+        // Extract specific wait time information
+        const recentWaitMention = waitMentions[0].text;
+        
+        if (recentWaitMention.includes('no wait') || recentWaitMention.includes("didn't wait")) {
+          return 'Minimal wait expected';
+        } else if (recentWaitMention.includes('long wait') || recentWaitMention.includes('hour')) {
+          return 'Long waits reported';
+        } else if (recentWaitMention.includes('busy') || recentWaitMention.includes('crowded')) {
+          return 'Gets busy - moderate waits';
+        } else if (recentWaitMention.includes('packed') || recentWaitMention.includes('full')) {
+          return 'Very crowded - expect waits';
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Error getting reviews for place ${placeId}:`, error);
+  }
+  
+  return 'Wait info unavailable';
+}
+
 function filterByNeighborhood(bars: any[], requestedNeighborhood: string): any[] {
   const neighborhood = requestedNeighborhood.toLowerCase();
   
@@ -90,7 +134,7 @@ export async function POST(request: NextRequest) {
       searchRadius = '2000'; // Expanded but still reasonable for transit
     }
 
-    // Get nearby bars
+    // Get nearby bars with reviews for wait time analysis
     const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json`;
     const placesParams = {
       location: `${location.lat},${location.lng}`,
@@ -129,6 +173,24 @@ export async function POST(request: NextRequest) {
     if (mustGoBarFromFiltered && !bars.some(bar => bar.place_id === mustGoBarFromFiltered.place_id)) {
       bars.push(mustGoBarFromFiltered);
       console.log(`Re-added must-go bar "${mustGoBarFromFiltered.name}" despite being outside ${preferences.neighborhood}`);
+    }
+
+    // Filter out vetoed bars (but preserve must-go bar)
+    if (preferences.vetoedBars && preferences.vetoedBars.length > 0) {
+      const barsBeforeVetoFilter = bars.length;
+      bars = bars.filter(bar => {
+        // Keep the bar if it's not vetoed OR if it's the must-go bar
+        const isVetoed = preferences.vetoedBars!.includes(bar.place_id);
+        const isMustGo = preferences.mustGoBar && 
+          bar.name.toLowerCase().includes(preferences.mustGoBar.toLowerCase());
+        
+        if (isVetoed && !isMustGo) {
+          console.log(`Filtered out vetoed bar: ${bar.name}`);
+          return false;
+        }
+        return true;
+      });
+      console.log(`Veto filtering: ${barsBeforeVetoFilter} → ${bars.length} bars (removed ${barsBeforeVetoFilter - bars.length} vetoed bars)`);
     }
     
     // If we have a must-go bar, ensure it's in the final list
@@ -192,8 +254,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const barList = bars.map((bar: { name: string; rating?: number; price_level?: number; vicinity: string }, index: number) => 
-      `${index}. ${bar.name} - Rating: ${bar.rating}, Price: ${bar.price_level ? '$'.repeat(bar.price_level) : 'N/A'}, Address: ${bar.vicinity}`
+    // Get wait time information from reviews for key bars
+    const barsWithWaitInfo = await Promise.all(
+      bars.map(async (bar: any, index: number) => {
+        // Only fetch reviews for a subset to avoid API limits
+        let waitInfo = 'Wait info unavailable';
+        if (index < 10) { // Limit to first 10 bars to manage API costs
+          waitInfo = await getBarWaitTimeFromReviews(bar.place_id);
+        }
+        return { ...bar, waitInfo };
+      })
+    );
+
+    const barList = barsWithWaitInfo.map((bar: any, index: number) => 
+      `${index}. ${bar.name} - Rating: ${bar.rating}, Price: ${bar.price_level ? '$'.repeat(bar.price_level) : 'N/A'}, Address: ${bar.vicinity}, Wait Times: ${bar.waitInfo}`
     ).join('\n');
     
     console.log('Final bar list sent to AI:');
@@ -245,6 +319,7 @@ STRATEGIC CONSIDERATIONS:
 - **Day-of-Week Patterns**: ${getDayOfWeekPatterns(preferences.dayOfWeek)}
 - **Wait Times & Reservations**: Only use put-name-down strategy for genuinely exclusive bars (like Double Chicken Please, PDT) where you literally can't get in without it. Regular bars you just walk into
 - **Peak Hours & Energy Timing**: Start with cocktail bars/wine bars (7-8 PM), hit lively spots mid-crawl (9-10 PM), END with dancey/club venues (11 PM+) when energy peaks
+- **Wait Time Strategy**: Prioritize bars with minimal waits for LATER stops. People are more patient early in the night but want quick access later when tired/drunk
 - **Closing Times**: Most bars close 2-4 AM, but some close earlier on weeknights. Plan accordingly and save late-night spots for last
 - **Transportation**: ${preferences.allowTransit ? 'You can use subway/bus for longer distances. Factor in 15-20 min transit time between distant bars. Walking is still preferred for nearby venues.' : 'Walking only - keep all venues within reasonable walking distance (10-15 min max).'}
 - **Route Optimization**: If a bar is far from others (different neighborhood/borough), visit it FIRST or LAST to minimize backtracking. Don't put distant bars in the middle of the route.
@@ -370,6 +445,11 @@ VIBE ENERGY MAPPING:
 - HIGH ENERGY END: "dancey", club-like venues, late-night spots
 
 PROGRESSION RULE: Order bars from lowest to highest energy. Save "dancey" vibes for the FINAL stop when possible.
+
+WAIT TIME OPTIMIZATION:
+- EARLY stops: Can handle "Long waits reported" or "Very crowded" bars - people are fresh and patient
+- LATE stops: Prioritize "Minimal wait expected" or "Wait info unavailable" bars - avoid waits when energy is flagging
+- If a bar shows "Gets busy - moderate waits", place it in early-to-middle timing, not final stops
 
 COMMUTE TIME ACCURACY: For each stop (except the last), include "commuteToNext" with:
 - method: "walk", "subway", "bus", or "taxi"
@@ -545,7 +625,10 @@ Focus on STRATEGIC REASONING that shows real nightlife expertise. Mention specif
           return isValid;
         })
         .map((stop: { barIndex: number; order: number; reasoning: string; estimatedTime: string; visitType?: string; commuteToNext?: any }) => ({
-          bar: bars[stop.barIndex],
+          bar: {
+            ...barsWithWaitInfo[stop.barIndex],
+            waitInfo: barsWithWaitInfo[stop.barIndex]?.waitInfo || 'Wait info unavailable'
+          },
           order: stop.order,
           reasoning: stop.reasoning,
           estimatedTime: stop.estimatedTime,

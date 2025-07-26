@@ -4,6 +4,7 @@ export interface Bar {
   rating?: number;
   price_level?: number;
   vicinity: string;
+  waitInfo?: string;
   geometry: {
     location: {
       lat: number;
@@ -58,4 +59,5 @@ export interface PlanningPreferences {
   endTime?: string;
   dayOfWeek?: string;
   allowTransit?: boolean;
+  vetoedBars?: string[]; // Array of place_ids that user has vetoed
 }
