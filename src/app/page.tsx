@@ -80,18 +80,47 @@ export default function Home() {
     const handleScroll = () => {
       const items = carousel.querySelectorAll('[data-carousel-item]');
       const carouselRect = carousel.getBoundingClientRect();
-      const centerX = carouselRect.left + carouselRect.width / 2;
+      const carouselLeft = carouselRect.left;
+      const carouselCenter = carouselLeft + carouselRect.width / 2;
+      const scrollLeft = carousel.scrollLeft;
+      
+      let focusedIndex = -1;
+      let bestCard = { index: 0, visibility: 0 };
 
-      items.forEach((item) => {
+      // First pass: try to find a card with 80%+ visibility (ideal case)
+      items.forEach((item, index) => {
         const itemRect = item.getBoundingClientRect();
-        const itemCenterX = itemRect.left + itemRect.width / 2;
-        const distance = Math.abs(centerX - itemCenterX);
-        const maxDistance = carouselRect.width / 2;
+        const itemLeft = itemRect.left;
+        const itemRight = itemRect.right;
         
-        // Calculate scale and opacity based on distance from center
-        const proximityRatio = Math.max(0, (maxDistance - distance) / maxDistance);
-        const scale = 0.75 + (proximityRatio * 0.35); // Scale from 0.75 to 1.1
-        const opacity = 0.5 + (proximityRatio * 0.5); // Opacity from 0.5 to 1
+        // Calculate visibility ratio
+        const visibleLeft = Math.max(itemLeft, carouselLeft);
+        const visibleRight = Math.min(itemRight, carouselLeft + carouselRect.width);
+        const visibleWidth = Math.max(0, visibleRight - visibleLeft);
+        const totalWidth = itemRect.width;
+        const visibilityRatio = visibleWidth / totalWidth;
+        
+        // Track the most visible card as backup
+        if (visibilityRatio > bestCard.visibility) {
+          bestCard = { index, visibility: visibilityRatio };
+        }
+        
+        // Prefer leftmost card with high visibility
+        if (visibilityRatio >= 0.8 && focusedIndex === -1) {
+          focusedIndex = index;
+        }
+      });
+
+      // If no card has 80%+ visibility, use the most visible card
+      if (focusedIndex === -1) {
+        focusedIndex = bestCard.index;
+      }
+
+      // Apply styling based on whether each card is the focused one
+      items.forEach((item, index) => {
+        const isFocused = index === focusedIndex;
+        const scale = isFocused ? 1.0 : 0.8;
+        const opacity = isFocused ? 1 : 0.6;
 
         (item as HTMLElement).style.transform = `scale(${scale})`;
         (item as HTMLElement).style.opacity = opacity.toString();
@@ -197,7 +226,7 @@ export default function Home() {
                 ref={carouselRef}
                 className="h-full overflow-x-auto snap-x snap-mandatory scrollbar-hide"
               >
-                <div className="flex h-full items-center gap-6 px-20" style={{ width: `${recommendations.length * 320 + 320}px` }}>
+                <div className="flex h-full items-center gap-6 px-20" style={{ width: `${recommendations.length * 320 + 1000}px` }}>
                   {recommendations.map((recommendation, index) => (
                     <div
                       key={index}
@@ -214,6 +243,11 @@ export default function Home() {
                       />
                     </div>
                   ))}
+                  {/* Invisible spacer to ensure last card can be centered */}
+                  <div 
+                    className="flex-shrink-0 snap-center"
+                    style={{ width: '50vw', height: '1px' }}
+                  />
                 </div>
               </div>
             </div>

@@ -23,6 +23,10 @@ export function filterAdultVenues(places: Place[]): Place[] {
     'escort', 'xxx', 'nude', 'dancers', 'cabaret'
   ];
 
+  const restaurantTypes = [
+    'restaurant', 'meal_takeaway', 'meal_delivery', 'food', 'cafe', 'bakery'
+  ];
+
   return places.filter((place) => {
     const nameCheck = !excludedKeywords.some(keyword => 
       place.name.toLowerCase().includes(keyword)
@@ -33,11 +37,24 @@ export function filterAdultVenues(places: Place[]): Place[] {
         place.name.toLowerCase().includes(keyword)
       )
     );
+
+    // Filter out restaurants unless they explicitly have bar types too
+    const hasBarType = place.types?.some(type => 
+      ['bar', 'liquor_store', 'night_club'].includes(type)
+    );
+    
+    const isRestaurant = place.types?.some(type => 
+      restaurantTypes.includes(type)
+    );
+
+    // Allow if it has bar type, or if it's not a restaurant
+    const venueTypeCheck = hasBarType || !isRestaurant;
     
     return place.business_status === 'OPERATIONAL' && 
            place.rating && 
            place.rating >= 3.5 &&
            nameCheck &&
-           typeCheck;
+           typeCheck &&
+           venueTypeCheck;
   });
 }

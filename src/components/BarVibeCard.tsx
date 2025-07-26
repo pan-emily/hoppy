@@ -114,9 +114,9 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
                 <span className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
                   {getPriceDisplay(bar.price_level)}
                 </span>
-                {bar.walkingDistance && (
+                {bar.walkingTime && (
                   <span className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
-                    🚶 {bar.walkingDistance}
+                    🚶 {bar.walkingTime}
                   </span>
                 )}
               </div>
@@ -188,10 +188,10 @@ export default function BarVibeCard({ recommendation, isCarousel = false }: BarV
           <span className="ml-1 text-gray-600">{getPriceDisplay(bar.price_level)}</span>
         </div>
         
-        {bar.walkingDistance && (
+        {bar.walkingTime && (
           <div className="flex items-center">
             <span className="font-medium text-gray-700">Walk:</span>
-            <span className="ml-1 text-gray-600">{bar.walkingDistance}</span>
+            <span className="ml-1 text-gray-600">{bar.walkingTime}</span>
           </div>
         )}
       </div>

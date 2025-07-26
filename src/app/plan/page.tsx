@@ -6,11 +6,21 @@ import axios from 'axios';
 import { BarCrawl, PlanningPreferences } from '../../types';
 
 export default function PlanPage() {
+  // Get today's day of the week
+  const getTodayDayOfWeek = () => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date().getDay()];
+  };
+
   const [preferences, setPreferences] = useState<PlanningPreferences>({
     neighborhood: '',
     numberOfStops: 3,
     vibes: [],
     mustGoBar: '',
+    startTime: '21:00', // Default to 9 PM
+    endTime: '01:00',   // Default to 1 AM
+    dayOfWeek: getTodayDayOfWeek(), // Default to today
+    allowTransit: false, // Default to walking only
   });
   
   const [crawl, setCrawl] = useState<BarCrawl | null>(null);
@@ -72,6 +82,55 @@ export default function PlanPage() {
     return emojiMap[vibe.toLowerCase()] || '🍻';
   };
 
+  const getCommuteIcon = (method: string) => {
+    const iconMap: { [key: string]: string } = {
+      'walk': '🚶',
+      'subway': '🚇',
+      'bus': '🚌',
+      'taxi': '🚕',
+    };
+    return iconMap[method.toLowerCase()] || '🚶';
+  };
+
+  const getVisitTypeStyle = (visitType?: string) => {
+    switch(visitType) {
+      case 'putNameDown':
+        return 'border-l-4 border-l-blue-500';
+      case 'return':
+        return 'border-l-4 border-l-green-500';
+      default:
+        return 'border-l-4 border-l-purple-500';
+    }
+  };
+
+  const getVisitTypeBadgeColor = (visitType?: string) => {
+    switch(visitType) {
+      case 'putNameDown':
+        return 'bg-blue-600';
+      case 'return':
+        return 'bg-green-600';
+      default:
+        return 'bg-purple-600';
+    }
+  };
+
+  const getVisitTypeLabel = (visitType?: string) => {
+    switch(visitType) {
+      case 'putNameDown':
+        return <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">Put Name Down</span>;
+      case 'return':
+        return <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">Return Visit</span>;
+      default:
+        return null;
+    }
+  };
+
+  const getUniqueBarCount = () => {
+    if (!crawl) return 0;
+    const uniqueBars = new Set(crawl.stops.map(stop => stop.bar.place_id));
+    return uniqueBars.size;
+  };
+
   if (crawl) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
@@ -84,7 +143,7 @@ export default function PlanPage() {
               🗓️ Your Bar Crawl Plan
             </h1>
             <p className="text-gray-600 text-lg">
-              {preferences.neighborhood} • {crawl.totalEstimatedTime}
+              {preferences.neighborhood} • {crawl.totalEstimatedTime} • {new Set(crawl.stops.map(stop => stop.bar.place_id)).size} unique bars
             </p>
           </header>
 
@@ -95,39 +154,63 @@ export default function PlanPage() {
 
           <div className="space-y-6">
             {crawl.stops.map((stop, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="bg-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4">
-                      {stop.order}
+              <div key={index}>
+                <div className={`bg-white rounded-lg shadow-md p-6 ${getVisitTypeStyle(stop.visitType)}`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center">
+                      <div className={`text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 ${getVisitTypeBadgeColor(stop.visitType)}`}>
+                        {stop.visitType === 'putNameDown' ? '📝' : stop.visitType === 'return' ? '↩️' : stop.order}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-bold text-gray-900">{stop.bar.name}</h3>
+                          {getVisitTypeLabel(stop.visitType)}
+                        </div>
+                        <p className="text-gray-600">{stop.estimatedTime}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{stop.bar.name}</h3>
-                      <p className="text-gray-600">{stop.estimatedTime}</p>
+                    <div className="flex items-center space-x-2">
+                      {stop.bar.rating && (
+                        <span className="text-sm text-gray-600">{stop.bar.rating}⭐</span>
+                      )}
+                      {stop.bar.price_level && (
+                        <span className="text-sm text-gray-600">{'$'.repeat(stop.bar.price_level)}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {stop.bar.rating && (
-                      <span className="text-sm text-gray-600">{stop.bar.rating}⭐</span>
-                    )}
-                    {stop.bar.price_level && (
-                      <span className="text-sm text-gray-600">{'$'.repeat(stop.bar.price_level)}</span>
-                    )}
+
+                  <p className="text-gray-700 mb-4 leading-relaxed">{stop.reasoning}</p>
+
+                  <div className="text-sm text-gray-500 mb-4">
+                    📍 {stop.bar.vicinity}
                   </div>
+
+                  <button
+                    onClick={() => openBarInMaps(stop.bar.place_id)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                  >
+                    Open in Google Maps
+                  </button>
                 </div>
 
-                <p className="text-gray-700 mb-4 leading-relaxed">{stop.reasoning}</p>
-
-                <div className="text-sm text-gray-500 mb-4">
-                  📍 {stop.bar.vicinity}
-                </div>
-
-                <button
-                  onClick={() => openBarInMaps(stop.bar.place_id)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  Open in Google Maps
-                </button>
+                {/* Commute Information */}
+                {stop.commuteToNext && index < crawl.stops.length - 1 && (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center max-w-md">
+                      <div className="flex items-center justify-center mb-2">
+                        {getCommuteIcon(stop.commuteToNext.method)}
+                        <span className="ml-2 font-medium text-gray-700">
+                          {stop.commuteToNext.duration} {stop.commuteToNext.method}
+                        </span>
+                      </div>
+                      {stop.commuteToNext.instructions && (
+                        <p className="text-sm text-gray-600 italic">
+                          💡 {stop.commuteToNext.instructions}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -227,6 +310,71 @@ export default function PlanPage() {
               placeholder="Name of a specific bar you want to include"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
+          </div>
+
+          <div>
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={preferences.allowTransit}
+                onChange={(e) => setPreferences(prev => ({ ...prev, allowTransit: e.target.checked }))}
+                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Allow public transit between bars
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 mt-1">
+              Check this if your must-go bar is outside walking distance from the neighborhood
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-700 mb-2">
+              Day of the Week
+            </label>
+            <select
+              id="dayOfWeek"
+              value={preferences.dayOfWeek}
+              onChange={(e) => setPreferences(prev => ({ ...prev, dayOfWeek: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-2">
+                Start Time
+              </label>
+              <input
+                type="time"
+                id="startTime"
+                value={preferences.startTime}
+                onChange={(e) => setPreferences(prev => ({ ...prev, startTime: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-2">
+                End Time
+              </label>
+              <input
+                type="time"
+                id="endTime"
+                value={preferences.endTime}
+                onChange={(e) => setPreferences(prev => ({ ...prev, endTime: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
           </div>
 
           {error && (

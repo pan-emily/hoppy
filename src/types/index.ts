@@ -35,6 +35,12 @@ export interface CrawlStop {
   order: number;
   reasoning: string;
   estimatedTime: string;
+  visitType?: 'full' | 'putNameDown' | 'return'; // Type of visit
+  commuteToNext?: {
+    method: 'walk' | 'subway' | 'bus' | 'taxi';
+    duration: string;
+    instructions?: string; // e.g., "Put your name down first", "Take L train 2 stops"
+  };
 }
 
 export interface BarCrawl {
@@ -48,4 +54,8 @@ export interface PlanningPreferences {
   numberOfStops: number;
   vibes: string[];
   mustGoBar?: string;
+  startTime?: string;
+  endTime?: string;
+  dayOfWeek?: string;
+  allowTransit?: boolean;
 }

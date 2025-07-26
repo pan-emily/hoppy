@@ -65,7 +65,17 @@ Focus on unique characteristics that make each bar special for its vibe. Keep de
       throw new Error('No response from OpenAI');
     }
 
-    const result = JSON.parse(responseText);
+    // Clean the response text to extract JSON from markdown code blocks
+    let cleanedResponse = responseText.trim();
+    
+    // Remove markdown code block markers if present
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    const result = JSON.parse(cleanedResponse);
     
     const vibeRecommendations: VibeRecommendation[] = result.recommendations
       .filter((rec: { vibe: string; barIndex: number; description: string }) => {
